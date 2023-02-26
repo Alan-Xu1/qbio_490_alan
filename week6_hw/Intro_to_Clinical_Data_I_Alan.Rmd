@@ -16,7 +16,19 @@ As good general practice to keep things organized, create an "analysis_data" fol
 Once the folder is created, set your working directory below:
 
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/PATH/TO/analysis_data")) 
+if (!require(BiocManager)){
+  install.packges("BiocManager")
+}
+    library(BiocManager)
+if (!require(TCGAbiolinks)){
+  install.packges("TCGAbiolinks")
+}
+    library(TCGAbiolinks)
+if (!require(maftools)){
+  install.packges("maftools")
+}
+    library(maftools)
+    knitr::opts_knit$set(root.dir = normalizePath("/Users/alanx/OneDrive/Desktop/QBIO490/qbio_490_alan/analysis_data")) 
 ```
 
 Before you move on, go to your GitHub web browser, open your .gitignore, and make sure the following is added in. 
@@ -33,22 +45,25 @@ The loaded files from TCGA are quite large, so we don't want to push them to Git
 ###### (2) Query and retrieve the TCGA breast cancer clinical data 
 
 ```{r}
-clin_query <- #Fill in correct command
+clin_query <- GDCquery(project = "TCGA-BRCA",
+data.category = "Clinical",
+file.type = "xml") #Fill in correct command
   
-clinic <- #Fill in correct command
+clinic <- GDCprepare_clinic(clin_query,
+clinical.info = "patient", directory = "/Users/alanx/OneDrive/Documents/GDCdata") #Fill in correct command
 
 ```
 
 Querying TCGA data can take a while, even without downloading. A faster way to save and access the clinical data is to save the dataframe as a csv file on your local computer. Use the following command to do so:
 
 ```{r}
-write.csv(clinic, "/PATH/TO/analysis_data/brca_clinical_data.csv", row.names=FALSE)
+write.csv(clinic, "/Users/alanx/OneDrive/Desktop/QBIO490/qbio_490_alan/analysis_data/brca_clinical_data.csv", row.names=FALSE)
 ```
 
 To read the csv back into your environment as a dataframe:
 
 ```{r}
-clinic <- read.csv("/PATH/TO/analysis_data/brca_clinical_data.csv")
+clinic <- read.csv("/Users/alanx/OneDrive/Desktop/QBIO490/qbio_490_alan/analysis_data/brca_clinical_data.csv")
 ```
 
 
@@ -58,24 +73,39 @@ clinic <- read.csv("/PATH/TO/analysis_data/brca_clinical_data.csv")
 View the structure of the data as well as the first few lines. What two commands should you use?
 Answer the following questions based on the output of those commands: 
 1. How many rows are there? How many columns?
+1174 rows. 114 columns.
 2. What is the data type of $gender?
+character
 3. What is the age in years of the 5th patient (barcode: TCGA-4H-AAAK)?
+50 years old
 4. How old was the 1st patient at their last follow up (barcode: TCGA-3C-AAAU)? HINT: you need to look at data from two columns to answer this
+66 years old
 
 ```{r Exercise 3.1}
 # write code here
+str(clinic)
+head(clinic)
+nrow(clinic)
+ncol(clinic)
+typeof(clinic$gender)
+clinic[5,"days_to_birth"] / 365
+( clinic[1,"days_to_birth"] - clinic[1,"days_to_last_followup"] ) / 365
 ```
 
 View the column and row names. What two commands should you use?
 
 ```{r Exercise 3.2}
 # write code here
+rownames(clinic)
+colnames(clinic)
 ```
 
 View the vital status column. What two notations can be used to view columns? 
 
 ```{r Exercise 3.3}
 # write code here
+clinic[,"vital_status"]
+clinic$vital_status
 ```
 
 ###### (4) Plotting
@@ -88,16 +118,21 @@ For an extra challenge, add a plot title, axes titles, and colors to your plot.
 
 ```{r Exercise 4.1}
 # create plot here
+plot(clinic$days_to_death, clinic$days_to_birth, xlab = "Patients' Survival in Days", 
+     ylab = "Age of Patient in Days", main = "Patients' Age vs. Patients' Survival", col = 4, pch = 4)
 ```
 
 Choose two new variables and make a box plot (recall the boxplot() function).
 
 THINK: what types of variables can you use in a box plot?
-
+ 
 For an extra challenge, add a plot title, axes titles, and confidence intervals to your plot.
 
 ```{r Exercise 4.2}
 # create plot here
+clinic$modified_radiation_therapy <- ifelse(clinic$radiation_therapy == "", "Unknown", clinic$radiation_therapy)
+boxplot(clinic$days_to_death ~ clinic$modified_radiation_therapy, main = "Patient Survival in Days as a Factor of Receiving Radiation Therapy",
+        notch = TRUE, xlab = "Patient Receivement of Radiation Therapy", ylab = "Patient Survival in Days")
 ```
 
 
@@ -109,23 +144,24 @@ A significant portion of your coding work will be data cleaning and preparation 
 
 1) Create a mask to remove all NA values from vital_status
 ```{r}
-vital_status_na_mask <- 
+# if the value is NA, don't include the row (FALSE), else include the row(TRUE)
+vital_status_na_mask <- ifelse(is.na(clinic$vital_status), FALSE, TRUE)
 ```
 
 2) Create a mask to select for male patients
 ```{r}
-male_mask <-
+male_mask <- ifelse(clinic$gender == "MALE", TRUE, FALSE)
 ```
 
 3) Create a mask to select for patients under the age of 35 OR over 60 at diagnosis. 
 ```{r}
-under30_over60_mask <-
+under30_over60_mask <- ifelse(clinic$age_at_initial_pathologic_diagnosis < 35 | clinic$age_at_initial_pathologic_diagnosis > 60, TRUE, FALSE)
 ```
 
 4) Using your under30_over60_mask, create a new dataframe called no_middle_clinic which contains all the clinical data for patients under the age of 30 or over 60 at diagnosis
 
 ```{r}
-no_middle_clinic <- 
+no_middle_clinic <- clinic[under30_over60_mask,]
 ```
 
 
